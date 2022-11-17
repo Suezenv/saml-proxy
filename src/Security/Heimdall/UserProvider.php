@@ -46,23 +46,29 @@ class UserProvider implements UserProviderInterface
      */
     public function loadUserByUsername($username)
     {
+        $this->logger->info("try to getUser by username: '" . $username . "'");
         try {
             $user = $this->heimdall->getUserByLdapUidNumber($username);
         } catch (\Exception $e) {
-            $this->logger->error(sprintf('Get user %s from session not found. Origin : %s', $username,$e->getMessage()));
-            throw $e;
+            $this->logger->warning(sprintf('Get User by LdapUidNumber %s from session not found. Origin : %s', $username, $e->getMessage()));
         }
-        
         if (!$user) {
-            $this->logger->warning(sprintf('User %s not found', $username));
+            try {
+                $user = $this->heimdall->getUserByUsername($username);
+            } catch (\Exception $e) {
+                $this->logger->error(sprintf('Get user By Username  %s from session not found. Origin : %s', $username, $e->getMessage()));
+                throw $e;
+            }
+        }
+        if (!$user) {
+            $this->logger->error(sprintf('User %s not found', $username));
             throw new UsernameNotFoundException(sprintf('User %s not found', $username));
         }
-
         try {
             $userContracts = $this->heimdall->getUserContracts($user);
             $user->setUserContracts($userContracts);
         } catch (\Exception $e) {
-            $this->logger->warning(
+            $this->logger->error(
                 sprintf('Exception occurred when loading user %s permissions : %s', $username, $e->getMessage())
             );
             throw $e;
