@@ -11,6 +11,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 class HeimdallClient
 {
     public const GET_USER_URL = '/api/user?ldapUidNumber=%s';
+    public const GET_USER_BY_USERNAME_URL = '/api/user?username=%s';
     public const GET_USER_PERMISSIONS_URL = '/api/user/%s/permissions';
 
     /**
@@ -56,6 +57,32 @@ class HeimdallClient
     }
 
     /**
+     * @param string $ldapUidNumber
+     *
+     * @return User|null
+     *
+     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
+     */
+    public function getUserByUsername(string $username): ?User
+    {
+        $response = $this->heimdallClient->request('GET', sprintf(self::GET_USER_BY_USERNAME_URL, urlencode($username)));
+
+        $this->successOrException($response);
+
+        $responseBody  = $response->toArray();
+
+        if (count($responseBody) === 0) {
+            return null;
+        }
+
+        return $this->serializer->denormalize($responseBody[0], User::class);
+    }
+
+    /**
      * @param User $user
      *
      * @return UserContract[]
@@ -74,7 +101,7 @@ class HeimdallClient
 
         $responseBody = $response->toArray();
 
-        return $this->serializer->denormalize($responseBody, UserContract::class.'[]');
+        return $this->serializer->denormalize($responseBody, UserContract::class . '[]');
     }
 
     /**
