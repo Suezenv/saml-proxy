@@ -8,7 +8,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
+
 
 class BackendController extends AbstractController
 {
@@ -23,15 +27,21 @@ class BackendController extends AbstractController
     protected $headers;
 
     /**
+     * @var LoggerInterface
+     */
+    public  $logger;
+
+    /**
      * BackendController constructor.
      *
      * @param HttpClientInterface $backendClient
      * @param array $backendHeaders
      */
-    public function __construct(HttpClientInterface $backendClient, array $backendHeaders)
+    public function __construct(HttpClientInterface $backendClient, array $backendHeaders, LoggerInterface $logger)
     {
         $this->client = $backendClient;
         $this->headers = $backendHeaders;
+        $this->logger = $logger;
     }
 
     /**
@@ -47,7 +57,7 @@ class BackendController extends AbstractController
 
         return $this->callBackend($request);
     }
-
+    
     /**
      * @param Request $request
      *
@@ -58,29 +68,66 @@ class BackendController extends AbstractController
      */
     public function callBackend(Request $request): Response
     {
-        $response = $this->client->request(
-            $request->getMethod(),
-            $request->getRequestUri(),
-            [
-                'body' => $request->getContent(),
+        try {
+            $options = [
                 'headers' => $this->headers
-            ]
-        );
-
-        $headers = $response->getHeaders(false);
-        unset($headers['transfer-encoding']); // prevent chunk error in proxy
-
-        return new StreamedResponse(
-            function () use ($response) {
-                $outputStream = fopen('php://output', 'wb');
-                foreach ($this->client->stream($response) as $chunk) {
-                    fwrite($outputStream, $chunk->getContent());
-                    flush();
+            ];
+        
+            // Check if the request has files
+            if ($request->files->count() > 0) {
+                $formFields = [];
+        
+                // Add files to the form fields
+                foreach ($request->files as $name => $file) {
+                    $formFields[] = new DataPart(
+                        fopen($file->getPathname(), 'r'),
+                        $file->getClientOriginalName(),
+                        $file->getMimeType()
+                    );
                 }
-                fclose($outputStream);
-            },
-            $response->getStatusCode(),
-            $headers
-        );
+        
+                // Add other form parameters
+                foreach ($request->request->all() as $name => $value) {
+                    $formFields[] = ['name' => $name, 'value' => $value];
+                }
+        
+                $formData = new FormDataPart($formFields);
+        
+                $options['body'] = $formData->bodyToIterable();
+                $options['headers'] += $formData->getPreparedHeaders()->toArray();
+            } else {
+                // If no files, forward the body content as is
+                $options['body'] = $request->getContent();
+            }
+        
+            $response = $this->client->request(
+                $request->getMethod(),
+                $request->getRequestUri(),
+                $options
+            );
+        
+            $headers = $response->getHeaders(false);
+            unset($headers['transfer-encoding']); // prevent chunk error in proxy
+        
+            return new StreamedResponse(
+                function () use ($response) {
+                    $outputStream = fopen('php://output', 'wb');
+                    foreach ($this->client->stream($response) as $chunk) {
+                        fwrite($outputStream, $chunk->getContent());
+                        flush();
+                    }
+                    fclose($outputStream);
+                },
+                $response->getStatusCode(),
+                $headers
+            );
+        }
+        catch(\Exception $exception) {
+            $this->logger->error(
+                "An error occured while importing user data",
+                ["message" => $exception->getMessage()]
+            );
+            return new JsonResponse($exception->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }
