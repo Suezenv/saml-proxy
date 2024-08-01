@@ -3,6 +3,9 @@
 
 namespace App\Controller;
 
+use EightPoints\Bundle\GuzzleBundle\Log\Logger;
+use EightPoints\Bundle\GuzzleBundle\Log\LoggerInterface;
+use Psr\Log\LoggerInterface as LogLoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -14,9 +17,10 @@ class SamlController extends AbstractController
     /**
      * @Route("/saml/is-logged-in")
      */
-    public function isAuthenticated()
+    public function isAuthenticated(LogLoggerInterface $logger)
     {
         if (!$this->getUser()) {
+            $logger->error('Is logged in failed because user is not authenticated.');
             return new JsonResponse([
                 'code' => 'USER_NOT_AUTHENTICATED',
                 'user' => null
