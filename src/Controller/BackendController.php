@@ -32,16 +32,22 @@ class BackendController extends AbstractController
     public  $logger;
 
     /**
+     * @var string
+     */
+    public  $requestExecutionTimeout;
+
+    /**
      * BackendController constructor.
      *
      * @param HttpClientInterface $backendClient
      * @param array $backendHeaders
      */
-    public function __construct(HttpClientInterface $backendClient, array $backendHeaders, LoggerInterface $logger)
+    public function __construct(HttpClientInterface $backendClient, array $backendHeaders, LoggerInterface $logger, string $requestExecutionTimeout)
     {
         $this->client = $backendClient;
         $this->headers = $backendHeaders;
         $this->logger = $logger;
+        $this->requestExecutionTimeout = $requestExecutionTimeout;
     }
 
     /**
@@ -70,7 +76,8 @@ class BackendController extends AbstractController
     {
         try {
             $options = [
-                'headers' => $this->headers
+                'headers' => $this->headers,
+                'timeout' => $this->requestExecutionTimeout,
             ];
         
             // Check if the request has files
