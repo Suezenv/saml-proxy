@@ -13,6 +13,7 @@ parameters:
     error.default_redirect_host: '%env(resolve:ERROR_DEFAULT_REDIRECT_HOST)%'
 
     backend.headers: '%env(json:BACKEND_HEADERS)%'
+    env(REQUEST_EXECUTION_TIMEOUT): 1200
 
 services:
     # default configuration for services in *this* file
@@ -25,6 +26,7 @@ services:
             $errorDefaultRedirectHost: '%error.default_redirect_host%'
             $backendHeaders: '%backend.headers%'
             $samlGroupAttribute: '%saml.group_attribute%'
+            $requestExecutionTimeout: '%env(REQUEST_EXECUTION_TIMEOUT)%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
