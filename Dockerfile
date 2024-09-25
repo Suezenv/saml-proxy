@@ -22,3 +22,5 @@ RUN cd /var/www/html \
     && composer clearcache -n
 
 COPY external-conf/api.conf /etc/nginx/sites-enabled/api.conf
+
+RUN echo "default_socket_timeout=-1" >> /usr/local/etc/php/conf.d/100-php-custom.ini
