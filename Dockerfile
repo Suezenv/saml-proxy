@@ -1,4 +1,4 @@
-FROM richarvey/nginx-php-fpm:1.6.0
+FROM 3sdockerregistry.azurecr.io/richarvey/nginx-php-fpm:1.9.4
 
 RUN apk add --no-cache --virtual .build-deps \
     g++ make autoconf yaml-dev \
